@@ -21,6 +21,10 @@ from scipy.ndimage import label
 
 def get_gray (img , invert = False ) :
 
+  """
+  Convert the color image to gray scale
+  """
+
   gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
   if invert :
     cv2.bitwise_not ( gray, gray )
@@ -31,6 +35,10 @@ def get_gray (img , invert = False ) :
 
 def smooth_mask ( gray  , blur = 1 , threshold = 128 ) :
 
+  """
+  Convert the gray image into a binary mask
+  """
+
   assert gray is not None
 
   gray_markers = nd.median_filter(gray, blur)
@@ -40,17 +48,29 @@ def smooth_mask ( gray  , blur = 1 , threshold = 128 ) :
 
 def smooth_borders (gray , blur = 1 ) :
 
+  """
+  Convert the gray image into a binary image with strong borders
+  """
+
   assert gray is not None
 
   gray_borders = cv2.GaussianBlur(gray, (blur, blur), 0)
   gray_borders = cv2.adaptiveThreshold(gray_borders, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 1)
 
   # Some morphology to clean up image
-  kernel = np.ones((5,5), np.uint8)
+  kernel = np.ones((3,3), np.uint8)
   gray_borders = cv2.morphologyEx(gray_borders, cv2.MORPH_OPEN, kernel)
   gray_borders = cv2.morphologyEx(gray_borders, cv2.MORPH_CLOSE, kernel)
 
+  kernel = np.ones((3,3), np.uint8)
+  gray_borders = cv2.erode(gray_borders,kernel,iterations = 1)
+
   return gray_borders
+
+
+def angle_cos(p0, p1, p2):
+  d1, d2 = (p0-p1).astype('float'), (p2-p1).astype('float')
+  return abs( np.dot(d1, d2) / np.sqrt( np.dot(d1, d1)*np.dot(d2, d2) ) )
 
 def find_squares(img,minArea=1000):
 
@@ -58,15 +78,9 @@ def find_squares(img,minArea=1000):
   Find squared contours with min area
   """
 
-  def angle_cos(p0, p1, p2):
-      d1, d2 = (p0-p1).astype('float'), (p2-p1).astype('float')
-      return abs( np.dot(d1, d2) / np.sqrt( np.dot(d1, d1)*np.dot(d2, d2) ) )
-
   squares = []
 
   contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
-  print len(contours)
 
   for cnt in contours:
     cnt_len = cv2.arcLength(cnt, True)
@@ -101,9 +115,102 @@ def mask_center_label ( gray ) :
 
   return gray
 
-def find_keypoints ( gray , quality , ksize , blocksize ) :
+def get_polygon_area(corners):
+  n = len(corners) # of corners
+  area = 0.0
+  for i in range(n):
+      j = (i + 1) % n
+      area += corners[i][0] * corners[j][1]
+      area -= corners[j][0] * corners[i][1]
+  area = abs(area) / 2.0
+  return area
+
+def get_oob_corners (oob) :
+
+  if oob is None :
+    return None
+
+  center , size , angle = oob
+
+  w = size[0]/2
+  h = size[1]/2
+  ox,oy = center
+
+  rangle = np.radians(angle)
+  sinn = np.sin (rangle)
+  coss = np.cos (rangle)
+
+  def f(x,y) :
+    return ( 
+      int ((x * w * coss) - ( y * h * sinn ) + ox ),
+      int ((x * w * sinn ) + (y * h * coss ) + oy )
+      )
+
+  p0 = f( 1, 1)
+  p1 = f( 1,-1)
+  p2 = f(-1,-1)
+  p3 = f(-1, 1)
+
+  return (p0,p1,p2,p3)
+
+def get_oob_hangle ( oob ) :
+
+  if oob is None :
+    return -1
+
+  center, size , angle = oob
+  s0,s1 = size
+
+  if s0 < s1 :
+    return 90 - np.abs(angle)
+  return np.abs(angle)
+
+def get_oob_vangle ( oob ) :
+
+  if oob is None :
+    return -1
+
+  center, size , angle = oob
+  s0,s1 = size
+
+  if s1 < s0 :
+    return 90 - np.abs(angle)
+  return np.abs(angle)
+
+def find_keypoints ( gray , quality , ksize , blocksize , max_area = None ) :
+  """
+  Find keypoints
+
+  return keypoints,oob,oob_corners
+  """
   gray32 = np.float32(gray)
-  return cv2.goodFeaturesToTrack(gray32,maxCorners = 100, qualityLevel = quality ,minDistance = ksize , blockSize = blocksize )
+  points = cv2.goodFeaturesToTrack(gray32,maxCorners = 100, qualityLevel = quality ,minDistance = ksize , blockSize = blocksize )
+
+  if points is None :
+    return None , None , None
+
+  if len(points) < 4 :
+    return None , None , None
+
+  oob = cv2.minAreaRect(points) 
+
+  if oob is None :
+    return None, None , None
+
+  oob_corners = get_oob_corners ( oob = oob )
+
+  if oob_corners is None :
+    return None, None , None
+
+  if max_area is None :
+    return points , oob , oob_corners
+
+  area = get_polygon_area ( corners = oob_corners )
+
+  if area > max_area :
+    return None, None , None
+
+  return points , oob , oob_corners
 
 def find_blobs (img) :
 

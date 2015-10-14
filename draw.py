@@ -30,35 +30,14 @@ def draw_points ( img , points , color = (255,0,0) ) :
 
   #return cv2.drawKeypoints(img, keypoints, np.array([]), (255,0,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-def draw_oob ( img , points , color = (0,255,0) ) :
+def draw_square ( img , square , color = (0,255,0) ) :
 
   assert img is not None
 
-  if points is None :
+  if square is None :
     return img
 
-  obb = cv2.minAreaRect(points) 
-
-  center , size , angle = obb
-
-  w = size[0]/2
-  h = size[1]/2
-  ox,oy = center
-
-  rangle = np.radians(angle)
-  sinn = np.sin (rangle)
-  coss = np.cos (rangle)
-
-  def f(x,y) :
-    return ( 
-      int ((x * w * coss) - ( y * h * sinn ) + ox ),
-      int ((x * w * sinn ) + (y * h * coss ) + oy )
-      )
-
-  p0 = f( 1, 1)
-  p1 = f( 1,-1)
-  p2 = f(-1,-1)
-  p3 = f(-1, 1)
+  p0,p1,p2,p3 = square
 
   cv2.line (img, p0, p1 , color , 1 )
   cv2.line (img, p1, p2 , color , 1 )

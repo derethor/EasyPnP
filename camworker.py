@@ -74,10 +74,13 @@ class CamWorker(QThread):
     features_blocksize = [ 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10 , 11 , 12 ] [ int( 10.0 *(slide5 / 100.0) ) ]
     features_ksize = [ 3 , 5 , 7 , 9 , 11 , 15 , 21 , 25 , 27 , 29 , 31 ] [ int( 10.0 *(slide6 / 100.0) ) ]
     features_quality = (slide7+1) / 1000.0
+    features_maxarea = slide8 / 100.0
 
     flag, frame=self.cam0.capture.read()
     if not flag :
       return False
+
+    features_maxarea = int(float(frame.shape [0] * frame.shape [1]) * features_maxarea)
 
     # CONVERT TO GRAY
 
@@ -92,11 +95,14 @@ class CamWorker(QThread):
 
     gray_borders = smooth_borders ( gray = gray_mask , blur = blur_border )
 
-    keypoints = find_keypoints ( gray = gray_borders , quality = features_quality , ksize = features_ksize , blocksize = features_blocksize )
+    keypoints, oob, oob_corners = find_keypoints ( gray = gray_borders , max_area = features_maxarea , quality = features_quality , ksize = features_ksize , blocksize = features_blocksize )
+
+    self.emit( SIGNAL('webcam_component_hangle(float)'), get_oob_hangle ( oob = oob ) )
+    self.emit( SIGNAL('webcam_component_vangle(float)'), get_oob_vangle ( oob = oob ) )
 
     # DRAW OOB
 
-    frame = draw_oob ( img = frame , points = keypoints )
+    frame = draw_square ( img = frame , square = oob_corners )
     frame = draw_points ( img = frame , points = keypoints )
 
     if display == 0 :

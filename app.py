@@ -10,12 +10,18 @@ from PyQt4.QtGui import *
 from gui import Ui_MainWindow
 from camworker import CamWorker
 
+class CoreMotion :
+  def __init__(self):
+    self.current = {}
+
 class MainWindow(QMainWindow):
 
   def __init__(self):
-    QMainWindow.__init__(self)    
+    QMainWindow.__init__(self)       
 
     self.logger = self.setup_logger( level = logging.ERROR )
+
+    self.coremotion = CoreMotion ()
 
     self.settings = QSettings ('staticboards' , 'pickplacev1.0.0')
 
@@ -30,6 +36,9 @@ class MainWindow(QMainWindow):
 
     QObject.connect(self.camworker, SIGNAL("webcam_frame(QImage)"), self.update_camera)
     QObject.connect(self.camworker, SIGNAL("webcam_frame_elapsed(float)"), self.update_elapsed)
+
+    QObject.connect(self.camworker, SIGNAL("webcam_component_hangle(float)"), lambda v: self.update_coremotion(section = "current" , name="component_hangle", value = v) )
+    QObject.connect(self.camworker, SIGNAL("webcam_component_vangle(float)"), lambda v: self.update_coremotion(section = "current" , name="component_vangle", value = v) )
 
     # CONNECT CALLBACKS
     self.ui.camera_slide1.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide1", value = v) )
@@ -71,11 +80,19 @@ class MainWindow(QMainWindow):
 
     return root
 
+  ###############################################################
+  ###############################################################
+
   def update_camera(self,img):
+
     try:
+
       pix=QPixmap.fromImage(img)
       self.scenecam.clear()
       self.scenecam.addPixmap(pix)
+
+      self.ui.camera.fitInView ( self.scenecam.sceneRect () , Qt.KeepAspectRatio )
+
     except Exception as e :
       logging.error ( str(e) )
       self.ui.statusbar.showMessage( str(e) )
@@ -83,6 +100,24 @@ class MainWindow(QMainWindow):
   def update_elapsed(self,elapsed):
     ms = elapsed * 1000.0
     self.ui.statusbar.showMessage( "Frame time: %s" % ms )
+
+  ##
+
+  def update_coremotion(self,section,name,value) :
+    assert section is not None
+    assert name is not None
+
+    if section == 'current' :
+      self.coremotion.current [name] = value
+
+      if name == 'component_hangle' :
+        self.ui.label_current_hangle.setText ( 'HANGLE %03d' % value )
+      if name == 'component_vangle' :
+        self.ui.label_current_vangle.setText ( 'VANGLE %03d' % value )
+
+
+  ###############################################################
+  ###############################################################
 
   def guisave(self,name):
 
