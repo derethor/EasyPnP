@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import cv2
@@ -108,7 +108,7 @@ def mask_center_label ( gray ) :
   h = label_im.shape[0]
   w = label_im.shape[1]
 
-  l = label_im [h/2,w/2]
+  l = label_im [h//2,w//2]
 
   gray [ label_im == l ] = 255
   gray [ label_im != l ] = 0

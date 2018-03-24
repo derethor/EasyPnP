@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import cv2
@@ -10,8 +10,8 @@ def draw_hud ( img , color = (0,0,255) ) :
 
   h,w,channels = img.shape
 
-  cv2.line (img , ( w/2,0 ) , (w/2,h)  , color , 1 )
-  cv2.line (img , ( 0 , h/2 ) , (w,h/2)  , color , 1 )
+  cv2.line (img , ( int(w/2),0 ) , (int(w/2),h)  , color , 1 )
+  cv2.line (img , ( 0,int(h/2) ) , (w,int(h/2))  , color , 1 )
 
   return img
 

@@ -5,4 +5,4 @@ clean:
 	rm -f *.pyc
 
 gui.py:gui.ui
-	pyuic4 gui.ui  > gui.py
+	pyuic5 gui.ui  > gui.py

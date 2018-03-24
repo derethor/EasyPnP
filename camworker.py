@@ -1,17 +1,23 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
+import logging
 from time import clock
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from camera import Camera
 from vision import *
 from draw import *
 
 class CamWorker(QThread): 
+
+  webcam_component_hangle = pyqtSignal(float)
+  webcam_component_vangle = pyqtSignal(float)
+  webcam_frame = pyqtSignal('QImage')
+  webcam_frame_elapsed = pyqtSignal(float)
 
   def __init__(self): 
 
@@ -80,6 +86,8 @@ class CamWorker(QThread):
     if not flag :
       return False
 
+    frame = cv2.flip ( frame , 1 )
+
     features_maxarea = int(float(frame.shape [0] * frame.shape [1]) * features_maxarea)
 
     # CONVERT TO GRAY
@@ -97,8 +105,8 @@ class CamWorker(QThread):
 
     keypoints, oob, oob_corners = find_keypoints ( gray = gray_borders , max_area = features_maxarea , quality = features_quality , ksize = features_ksize , blocksize = features_blocksize )
 
-    self.emit( SIGNAL('webcam_component_hangle(float)'), get_oob_hangle ( oob = oob ) )
-    self.emit( SIGNAL('webcam_component_vangle(float)'), get_oob_vangle ( oob = oob ) )
+    self.webcam_component_hangle.emit ( get_oob_hangle ( oob = oob ) )
+    self.webcam_component_vangle.emit ( get_oob_vangle ( oob = oob ) )
 
     # DRAW OOB
 
@@ -130,7 +138,7 @@ class CamWorker(QThread):
       self.previousFrame = self.currentFrame
       return img
     except Exception as e :
-      print e
+      print (e)
       return None
 
   def run(self):
@@ -146,5 +154,6 @@ class CamWorker(QThread):
       if self.processNextFrame( values = values ) is True :
         pix = self.convertFrame ()
         elapsed = clock () - begin
-        self.emit( SIGNAL('webcam_frame(QImage)'), pix )
-        self.emit( SIGNAL('webcam_frame_elapsed(float)'), elapsed )
+        self.webcam_frame.emit(pix)
+        self.webcam_frame_elapsed.emit(elapsed)
+

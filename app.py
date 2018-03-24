@@ -1,11 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sys , json
 import logging
 import inspect
- 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
  
 from gui import Ui_MainWindow
 from camworker import CamWorker
@@ -19,7 +20,7 @@ class MainWindow(QMainWindow):
   def __init__(self):
     QMainWindow.__init__(self)       
 
-    self.logger = self.setup_logger( level = logging.ERROR )
+    self.logger = self.setup_logger( level = logging.DEBUG)
 
     self.coremotion = CoreMotion ()
 
@@ -34,14 +35,11 @@ class MainWindow(QMainWindow):
     self.camworker = CamWorker()
     self.camworker.start()
 
-    QObject.connect(self.camworker, SIGNAL("webcam_frame(QImage)"), self.update_camera)
-    QObject.connect(self.camworker, SIGNAL("webcam_frame_elapsed(float)"), self.update_elapsed)
-
-    QObject.connect(self.camworker, SIGNAL("webcam_component_hangle(float)"), lambda v: self.update_coremotion(section = "current" , name="component_hangle", value = v) )
-    QObject.connect(self.camworker, SIGNAL("webcam_component_vangle(float)"), lambda v: self.update_coremotion(section = "current" , name="component_vangle", value = v) )
+    self.camworker.webcam_frame.connect( self.update_camera )
+    self.camworker.webcam_frame_elapsed.connect( self.update_elapsed )
 
     # CONNECT CALLBACKS
-    self.ui.camera_slide1.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide1", value = v) )
+    self.ui.camera_slide1.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide2", value = v) )
     self.ui.camera_slide2.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide2", value = v) )
     self.ui.camera_slide3.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide3", value = v) )
     self.ui.camera_slide4.valueChanged.connect( lambda v: self.set_config_value(section = "camworker" , name="camera_slide4", value = v) )
@@ -83,6 +81,7 @@ class MainWindow(QMainWindow):
   ###############################################################
   ###############################################################
 
+  @pyqtSlot('QImage')
   def update_camera(self,img):
 
     try:
@@ -97,6 +96,7 @@ class MainWindow(QMainWindow):
       logging.error ( str(e) )
       self.ui.statusbar.showMessage( str(e) )
 
+  @pyqtSlot(float)
   def update_elapsed(self,elapsed):
     ms = elapsed * 1000.0
     self.ui.statusbar.showMessage( "Frame time: %s" % ms )
@@ -150,18 +150,19 @@ class MainWindow(QMainWindow):
         continue
 
       if isinstance(obj, QComboBox):
-        value,valid = value.toInt()
-        if valid :
+        value = int(value)
+        if value is not None:
           obj.setCurrentIndex(value)
 
       if isinstance(obj, QSlider):
-        value,valid = value.toInt()
-        if valid :
+        value = int(value)
+        if value is not None:
           obj.setValue(value)
 
       if isinstance(obj, QCheckBox):        
-        value = value.toBool()
-        obj.setChecked( value )
+        value = bool(value)
+        if value is not None:
+          obj.setChecked( value )
 
   def set_config_value ( self , section , name , value ) :
     """
@@ -179,20 +180,21 @@ class MainWindow(QMainWindow):
       self.camworker.setvalue(name,value)
 
 # Main entry to program.  Sets up the main app and create a new window.
-def main(argv):
+def main():
 
   # create Qt application
-  app = QApplication(argv,True)
+  app = QApplication(sys.argv)
 
   # create main window
   wnd = MainWindow() # classname
   wnd.show()
 
   # Connect signal for app finish
-  app.connect(app, SIGNAL("lastWindowClosed()"), app, SLOT("quit()"))
+  app.lastWindowClosed.connect ( app.quit )
 
   # Start the app up
   sys.exit(app.exec_())
  
 if __name__ == "__main__":
-  main(sys.argv)
+  main()
+
